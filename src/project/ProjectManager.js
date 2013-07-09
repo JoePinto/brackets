@@ -789,7 +789,7 @@ define(function (require, exports, module) {
         if (canonPath === _getWelcomeProjectPath()) {
             return true;
         }
-        var welcomeProjects = [];
+        var welcomeProjects = _prefs.getValue("welcomeProjects") || [];
         return welcomeProjects.indexOf(canonPath) !== -1;
     }
     
@@ -797,11 +797,11 @@ define(function (require, exports, module) {
      * If the provided path is to an old welcome project, updates to the current one.
      */
     function updateWelcomeProjectPath(path) {
-        var thePath = path;
         if (isWelcomeProjectPath(path)) {
-            thePath = _getWelcomeProjectPath();
+            return _getWelcomeProjectPath();
+        } else {
+            return path;
         }
-        return $.when(thePath).promise();
     }
 
     /**
@@ -810,10 +810,9 @@ define(function (require, exports, module) {
      */
     function getInitialProjectPath() {
         if (chrome.runtime) {
-            return $.when("/").promise();
-        } else {
-            return _prefs.getValueAsync("projectPath").done(updateWelcomeProjectPath)
+            return "/";
         }
+        return updateWelcomeProjectPath(_prefs.getValue("projectPath"));
     }
     
     /**
@@ -924,7 +923,7 @@ define(function (require, exports, module) {
                                 // a current project before continuing after _loadProject().
                                 result.reject();
                             });
-                       }
+                        }
                     });
                 }
                 );
