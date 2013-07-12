@@ -4,14 +4,5 @@
 
 (function () {
     "use strict";
-    
-    chrome.app.runtime.onLaunched.addListener(function () {
-        chrome.app.window.create('index.html', {
-            'id': 'brackets'
-        }, function (window){
-		window.maximize();
-		});
-		
-    });  
-    
+
 }());

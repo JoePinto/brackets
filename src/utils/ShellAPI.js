@@ -74,5 +74,10 @@ define(function (require, exports, module) {
         appReady = true;
     });
     
-    exports.executeCommand = executeCommand;
+    if (chrome.runtime) {
+        exports.executeCommand = CommandManager.execute;
+    } else {
+        exports.executeCommand = executeCommand;
+    }
+
 });
