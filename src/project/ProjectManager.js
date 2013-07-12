@@ -809,9 +809,9 @@ define(function (require, exports, module) {
      * first launch. 
      */
     function getInitialProjectPath() {
-        if (chrome.runtime) {
+	if (chrome.runtime) {            
             return "/";
-        }
+       }
         return updateWelcomeProjectPath(_prefs.getValue("projectPath"));
     }
     
