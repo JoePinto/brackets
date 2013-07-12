@@ -23,13 +23,13 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global chrome, document */
+/*global chrome, document, window */
 
 (function () {
     "use strict";
 
-    var shell    = chrome.app.window.current(),
-        appFrame = document.getElementById('app-frame');
+    var currentShell = chrome.app.window.current(),
+        appFrame     = document.getElementById('app-frame');
 
     function getBrackets() {
         return appFrame.contentWindow.brackets;
@@ -39,22 +39,22 @@
         var brackets = getBrackets();
 
         brackets.shellAPI.executeCommand("file.close_window").always(function () {
-            shell.close();
+            currentShell.close();
         });
     }
 
     document.getElementById('close-button').addEventListener('click', quitBrackets, false);
 
-    document.getElementById('maximize-button').addEventListener('click', function (event) {
-        if (shell.isMaximized()) {
-            shell.restore();
+    document.getElementById('maximize-button').addEventListener('click', function () {
+        if (currentShell.isMaximized()) {
+            currentShell.restore();
         } else {
-            shell.maximize();
+            currentShell.maximize();
         }
     }, false);
 
-    document.getElementById('minimize-button').addEventListener('click', function (event) {
-        shell.minimize();
+    document.getElementById('minimize-button').addEventListener('click', function () {
+        currentShell.minimize();
     }, false);
 
 
@@ -64,6 +64,7 @@
         }
 
         var brackets = appFrame.contentWindow.brackets;
+        brackets.fs = window.shell.fs;
         brackets.app = {
             quit: quitBrackets,
             addMenu: function () {
