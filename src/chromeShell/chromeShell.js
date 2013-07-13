@@ -23,13 +23,16 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global chrome, document, window */
+/*global $, define, chrome, document, window */
 
-(function () {
+define(function (require, exports, module) {
     "use strict";
 
-    var currentShell = chrome.app.window.current(),
-        appFrame     = document.getElementById('app-frame');
+    var currentShell   = chrome.app.window.current(),
+        appFrame       = document.getElementById("app-frame"),
+        HtmlFileSystem = require("HtmlFileSystem"),
+        localStorage   = require("localStorage");
+    
 
     function getBrackets() {
         return appFrame.contentWindow.brackets;
@@ -37,15 +40,18 @@
 
     function quitBrackets() {
         var brackets = getBrackets();
-
-        brackets.shellAPI.executeCommand("file.close_window").always(function () {
+        
+        $.when(
+            brackets.shellAPI.executeCommand("file.close_window"),
+            localStorage.terminate()
+        ).always(function () {
             currentShell.close();
         });
     }
 
-    document.getElementById('close-button').addEventListener('click', quitBrackets, false);
+    document.getElementById("close-button").addEventListener("click", quitBrackets, false);
 
-    document.getElementById('maximize-button').addEventListener('click', function () {
+    document.getElementById("maximize-button").addEventListener("click", function () {
         if (currentShell.isMaximized()) {
             currentShell.restore();
         } else {
@@ -53,27 +59,42 @@
         }
     }, false);
 
-    document.getElementById('minimize-button').addEventListener('click', function () {
+    document.getElementById("minimize-button").addEventListener("click", function () {
         currentShell.minimize();
     }, false);
-
-
-    appFrame.addEventListener('load', function () {
-        if (!appFrame.contentWindow.brackets) {
-            appFrame.contentWindow.brackets = {};
-        }
-
-        var brackets = appFrame.contentWindow.brackets;
-        brackets.fs = window.shell.fs;
-        brackets.app = {
+    
+    
+    
+    function loadBrackets() {
+        appFrame.src = "/index.html";
+    }
+    
+    // create the global object
+    var brackets = {
+        app: {
             quit: quitBrackets,
             addMenu: function () {
-                console.log('adding menu');
+                console.log("adding menu");
             },
             addMenuItem: function () {
-                console.log('adding menu item');
+                console.log("adding menu item");
             }
-        };
+        }
+    };
+    
+    // Initialize APIs before loading brackets
+    $.when(
+        HtmlFileSystem.initialize(),
+        localStorage.initialize()
+    ).done(function (fs, localStorage) {
+        brackets.fs = fs;
+        brackets.localStorage = localStorage;
+        console.log("shell initialized");
+        loadBrackets();
     });
 
-}());
+    appFrame.addEventListener("load", function () {
+        appFrame.contentWindow.brackets = brackets;
+    });
+
+});

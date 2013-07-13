@@ -41,6 +41,7 @@
                 overflow: hidden;
                 padding: 0 5px;
                 white-space: nowrap;
+                font-family: marlett;
             }
 
             .button:hover {
@@ -52,19 +53,19 @@
             }
 
         </style>
-        <script src="fs.js"></script>
+        <script src="thirdparty/jquery/jquery-2.0.1.min.js"></script>
     </head>
     <body>
         <div id="title-bar">
             <div class="window-controls">
-                <div id="minimize-button" class="button">-</div>
-                <div id="maximize-button" class="button">+</div>
-                <div id="close-button" class="button">x</div>
+                <div id="minimize-button" class="button">0</div>
+                <div id="maximize-button" class="button">1</div>
+                <div id="close-button" class="button">r</div>
             </div>
         </div>
         <div id="app">
-            <iframe id="app-frame" src="/index.html"></iframe>
+            <iframe id="app-frame"></iframe></iframe>
         </div>
-        <script src="chromeShell.js"></script>
+        <script src="thirdparty/requirejs/require.js" data-main="chromeShell"></script>
     </body>
 </html>

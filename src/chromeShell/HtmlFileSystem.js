@@ -23,20 +23,29 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global Dropbox, window */
-(function () {
+/*global $, define, window */
+define(function (require, exports, module) {
     "use strict";
-    
-    window.shell = window.shell || {};
-    window.shell.fs = {};
-    var shell = window.shell;
-    
-    function mapError(error) {
-        return shell.fs.NO_ERROR;
-    }
 	
     var fs = null;
     
+    var errorCodes = {
+        NO_ERROR                 : 0,
+        ERR_UNKNOWN              : 1,
+        ERR_INVALID_PARAMS       : 2,
+        ERR_NOT_FOUND            : 3,
+        ERR_CANT_READ            : 4,
+        ERR_UNSUPPORTED_ENCODING : 5,
+        ERR_CANT_WRITE           : 6,
+        ERR_OUT_OF_SPACE         : 7,
+        ERR_NOT_FILE             : 8,
+        ERR_NOT_DIRECTORY        : 9,
+        ERR_FILE_EXISTS          : 10
+    };
+    
+    function mapError(error) {
+        return errorCodes.NO_ERROR;
+    }
     
     function createErrorHandler(callback) {
         return function handler(error) {
@@ -85,7 +94,7 @@
                 for (i = 0; i < results.length; i++) {
                     entries[i] = results[i].name;
                 }
-                callback(shell.fs.NO_ERROR, entries);
+                callback(errorCodes.NO_ERROR, entries);
             }, errorHandler);
   
         } else {
@@ -97,7 +106,7 @@
                     for (i = 0; i < entries.length; i++) {
                         results[i] = entries[i].name;
                     }
-                    callback(shell.fs.NO_ERROR, results);
+                    callback(errorCodes.NO_ERROR, results);
                 }, errorHandler);
             }, errorHandler);
         }
@@ -109,7 +118,7 @@
         var errorHandler = createErrorHandler(callback);
         
         fs.root.getDirectory(path, {create: true}, function () {
-            callback(shell.fs.NO_ERROR);
+            callback(errorCodes.NO_ERROR);
         }, errorHandler);
     }
 	
@@ -123,7 +132,7 @@
         var errorHandler = createErrorHandler(callback);
 	   
         if (path === "/") {
-            callback(shell.fs.NO_ERROR, {
+            callback(errorCodes.NO_ERROR, {
                 isFile: function () {
                     return false;
                 },
@@ -136,7 +145,7 @@
 	  
             if (path.indexOf(".") !== -1) {
                 fs.root.getFile(path, {create : false}, function () {
-                    callback(shell.fs.NO_ERROR, {
+                    callback(errorCodes.NO_ERROR, {
                         isFile: function () {
                             return true;
                         },
@@ -147,13 +156,13 @@
                     });
 
                 }, function () {
-                    callback(shell.fs.ERR_NOT_FOUND, {});
+                    callback(errorCodes.ERR_NOT_FOUND, {});
                 });
  
             } else {
                 
                 fs.root.getDirectory(path, {create : false}, function () {
-                    callback(shell.fs.NO_ERROR, {
+                    callback(errorCodes.NO_ERROR, {
                         isFile: function () {
                             return false;
                         },
@@ -164,7 +173,7 @@
                     });
                     
                 }, function () {
-                    callback(shell.fs.ERR_NOT_FOUND, {});
+                    callback(errorCodes.ERR_NOT_FOUND, {});
                 });
             }
 	  
@@ -185,7 +194,7 @@
         
                 reader.onloadend = function (e) {
                     var result = e.target.result;
-                    callback(shell.fs.NO_ERROR, result);
+                    callback(errorCodes.NO_ERROR, result);
                 };
         
                 reader.readAsText(file);
@@ -205,7 +214,7 @@
 
                 fileWriter.onwriteend = function (e) {
                     console.log('Write completed.');
-                    callback(shell.fs.NO_ERROR);
+                    callback(errorCodes.NO_ERROR);
                 };
     
                 fileWriter.onerror = function (e) {
@@ -233,13 +242,13 @@
         fs.root.getFile(oldPath, {create: false}, function (fileEntry) {
             if (newDirName === "/") {
                 fileEntry.moveTo(fs.root, newFileName, function () {
-                    callback(shell.fs.NO_ERROR);
+                    callback(errorCodes.NO_ERROR);
                 }, callback);
             } else {
             
                 fs.root.getDirectory(newDirName, {create: true}, function (dirEntry) {
                     fileEntry.moveTo(dirEntry, newFileName, function () {
-                        callback(shell.fs.NO_ERROR);
+                        callback(errorCodes.NO_ERROR);
                     }, callback);
                 }, callback);
                 
@@ -257,7 +266,7 @@
             fs.root.getFile(path, {create: false}, function (fileEntry) {
 
                 fileEntry.remove(function () {
-                    callback(shell.fs.NO_ERROR);
+                    callback(errorCodes.NO_ERROR);
                 }, errorHandler);
 
             }, errorHandler);
@@ -267,7 +276,7 @@
             fs.root.getDirectory(path, {}, function (dirEntry) {
 
                 dirEntry.removeRecursively(function () {
-                    callback(shell.fs.NO_ERROR);
+                    callback(errorCodes.NO_ERROR);
                 }, errorHandler);
 
             }, errorHandler);
@@ -284,43 +293,53 @@
             callback(1);
         }
     }
+    
 	
     function onInitFs(filesystem) {
         console.log('Opened file system: ' + filesystem.name);
 
         fs = filesystem;
-		
-        window.shell.fs.readdir = readdir;
-        window.shell.fs.makedir = makedir;
-        window.shell.fs.stat = stat;
-        window.shell.fs.readFile = readFile;
-        window.shell.fs.writeFile = writeFile;
-        window.shell.fs.rename = rename;
-        window.shell.fs.moveToTrash = unlink;
-        window.shell.fs.showOpenDialog = showOpenDialog;
         
-        // Error codes
-        window.shell.fs.NO_ERROR                    = 0;
-        window.shell.fs.ERR_UNKNOWN                 = 1;
-        window.shell.fs.ERR_INVALID_PARAMS          = 2;
-        window.shell.fs.ERR_NOT_FOUND               = 3;
-        window.shell.fs.ERR_CANT_READ               = 4;
-        window.shell.fs.ERR_UNSUPPORTED_ENCODING    = 5;
-        window.shell.fs.ERR_CANT_WRITE              = 6;
-        window.shell.fs.ERR_OUT_OF_SPACE            = 7;
-        window.shell.fs.ERR_NOT_FILE                = 8;
-        window.shell.fs.ERR_NOT_DIRECTORY           = 9;
-        window.shell.fs.ERR_FILE_EXISTS             = 10;
+        return {
+            readdir                  : readdir,
+            makedir                  : makedir,
+            stat                     : stat,
+            readFile                 : readFile,
+            writeFile                : writeFile,
+            rename                   : rename,
+            moveToTrash              : unlink,
+            showOpenDialog           : showOpenDialog,
+            
+            // Error codes
+            NO_ERROR                 : errorCodes.NO_ERROR,
+            ERR_UNKNOWN              : errorCodes.ERR_UNKNOWN,
+            ERR_INVALID_PARAMS       : errorCodes.ERR_INVALID_PARAMS,
+            ERR_NOT_FOUND            : errorCodes.ERR_NOT_FOUND,
+            ERR_CANT_READ            : errorCodes.ERR_CANT_READ,
+            ERR_UNSUPPORTED_ENCODING : errorCodes.ERR_UNSUPPORTED_ENCODING,
+            ERR_CANT_WRITE           : errorCodes.ERR_CANT_WRITE,
+            ERR_OUT_OF_SPACE         : errorCodes.ERR_OUT_OF_SPACE,
+            ERR_NOT_FILE             : errorCodes.ERR_NOT_FILE,
+            ERR_NOT_DIRECTORY        : errorCodes.ERR_NOT_DIRECTORY,
+            ERR_FILE_EXISTS          : errorCodes.ERR_FILE_EXISTS
+        };
     }
 
 
 
     
-    function init() {
-        /*1TB*/
-        window.webkitRequestFileSystem(window.PERSISTENT, 1024 * 1024 * 1024 * 1024, onInitFs, createErrorHandler());
+    function initialize() {
+        var result = new $.Deferred();
+        window.webkitRequestFileSystem(window.PERSISTENT, 1024 * 1024 * 1024 * 1024, function (htmlFileSystem) {
+            var fs = onInitFs(htmlFileSystem);
+            result.resolve(fs);
+        }, function (err) {
+            console.error("error while initializing fs");
+            result.reject(err);
+        });
+        return result.promise();
     }
     
-    init();
+    exports.initialize = initialize;
     
-}());
+});
