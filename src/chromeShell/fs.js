@@ -27,6 +27,9 @@
 (function () {
     "use strict";
     
+    var DocumentManager = null;
+    var LiveDevelopment = null;
+    
     window.shell = window.shell || {};
     window.shell.fs = {};
     var shell = window.shell;
@@ -205,7 +208,8 @@
 
                 fileWriter.onwriteend = function (e) {
                     console.log('Write completed.');
-                    callback(shell.fs.NO_ERROR);
+                    LiveDevelopment.RefreshPage(path);
+                    callback(brackets.fs.NO_ERROR);                          
                 };
     
                 fileWriter.onerror = function (e) {
@@ -298,6 +302,9 @@
         window.shell.fs.rename = rename;
         window.shell.fs.moveToTrash = unlink;
         window.shell.fs.showOpenDialog = showOpenDialog;
+        
+        DocumentManager = brackets.getModule("document/DocumentManager");
+        LiveDevelopment = brackets.getModule("LiveDevelopment/main");
         
         // Error codes
         window.shell.fs.NO_ERROR                    = 0;
