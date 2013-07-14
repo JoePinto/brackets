@@ -213,8 +213,13 @@ define(function (require, exports, module) {
             fileEntry.createWriter(function (fileWriter) {
 
                 fileWriter.onwriteend = function (e) {
-                    console.log('Write completed.');
-                    callback(errorCodes.NO_ERROR);
+                    fileEntry.createWriter(function (fileWriter) {
+                        fileWriter.truncate(blob.size);
+                        fileWriter.onwriteend = function (e) {
+                            console.log('Write completed.');
+                            callback(errorCodes.NO_ERROR);
+                        };
+                    });
                 };
     
                 fileWriter.onerror = function (e) {
