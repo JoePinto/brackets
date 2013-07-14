@@ -35,7 +35,7 @@ define(function (require, exports, module) {
     
     
     // create the global object
-    var brackets = {
+    window.brackets = {
         app: {
             quit: Window.close,
             addMenu: function () {
@@ -58,7 +58,7 @@ define(function (require, exports, module) {
         brackets.fs = fs;
         brackets.localStorage = localStorage;
         console.log("shell initialized");
-        AppFrame.load(brackets);
+        AppFrame.load();
     });
     
     function executeCloseCommand() {

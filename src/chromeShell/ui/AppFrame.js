@@ -29,7 +29,6 @@ define(function (require, exports, module) {
     "use strict";
     
     var _appFrame = document.getElementById("app-frame");
-    var _global = null;
     
     var $exports = $(exports);
     
@@ -49,12 +48,10 @@ define(function (require, exports, module) {
     }
     
     _appFrame.addEventListener("load", function () {
-        _appFrame.contentWindow.brackets = _global;
         listenForTitleChanges();
     });
     
-    function load(global) {
-        _global = global;
+    function load() {
         _appFrame.src = "/index.html";
     }
     
