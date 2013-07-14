@@ -35,7 +35,8 @@ define(function (require, exports, module) {
     var PreferenceStorage = require("preferences/PreferenceStorage").PreferenceStorage,
         FileUtils         = require("file/FileUtils"),
         ExtensionLoader   = require("utils/ExtensionLoader"),
-        CollectionUtils   = require("utils/CollectionUtils");
+        CollectionUtils   = require("utils/CollectionUtils"),
+        localStorage      = require("utils/NativeLocalStorage").localStorage;
     
     /**
      * The local storage ID
@@ -199,7 +200,7 @@ define(function (require, exports, module) {
 
     // Check localStorage for a preferencesKey. Production and unit test keys
     // are used to keep preferences separate within the same storage implementation.
-    preferencesKey = "prod";//preferencesKey = localStorage.getItem("preferencesKey");
+    preferencesKey = localStorage.getItem("preferencesKey");
     
     if (!preferencesKey) {
         // use default key if none is found
@@ -207,25 +208,11 @@ define(function (require, exports, module) {
         doLoadPreferences = true;
     } else {
         // using a non-default key, check for additional settings
-        //doLoadPreferences = !!(localStorage.getItem("doLoadPreferences"));
+        doLoadPreferences = !!(localStorage.getItem("doLoadPreferences"));
     }
 
-   var lc = (function() {
-        var db = {};
-        function get(k) { 
-            return db[k];
-        }
-        function set(k, v){
-            db[k] = v;
-        }
-        return {
-            getItem : get,
-            setItem : set
-        };
-    }());
-
     // Use localStorage by default
-    _initStorage(lc /*localStorage*/);
+    _initStorage(localStorage);
 
     // Public API
     exports.getPreferenceStorage    = getPreferenceStorage;

@@ -2,69 +2,26 @@
 <html>
     <head>
         <title></title>
-
-        <style>
-
-            html {
-                background: #3C3F41;
-            }
-
-            #title-bar {
-                position: absolute;
-                top: 0; left: 0; right: 0;
-                height: 30px;
-                -webkit-app-region: drag;
-            }
-
-            #app {
-                position: absolute;
-                top: 30px; left: 0; right: 0; bottom: 0;
-                border: none;
-
-
-            }
-
-            #app > iframe {
-                width: 100%; height: 100%;
-                border: none;
-            }
-
-
-            .window-controls {
-                float: right;
-                -webkit-app-region: no-drag;
-            }
-
-            .button {
-                border: 1px solid transparent;
-                display: inline-block;
-                overflow: hidden;
-                padding: 0 5px;
-                white-space: nowrap;
-            }
-
-            .button:hover {
-                border-radius: 3px;
-                border: 1px solid #2d2f31;
-                box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
-                color: #a0a0a0;
-                text-decoration: none;
-            }
-
-        </style>
-        <script src="fs.js"></script>
+        <link rel="stylesheet/less" href="styles/chromeShell.less">
+        <script src="crx.js"></script>
+        <script src="thirdparty/less/less-1.3.3.min.js"></script>
+        <script src="thirdparty/jquery/jquery-2.0.1.min.js"></script>
     </head>
     <body>
         <div id="title-bar">
-            <div class="window-controls">
-                <div id="minimize-button" class="button">-</div>
-                <div id="maximize-button" class="button">+</div>
-                <div id="close-button" class="button">x</div>
+            <div class="title"></div>
+            <div id="window-controls">
+                <button class="minimize">_</button>
+                <button class="maximize">+</button>
+                <button class="restore">-</button>
+                <button class="close">x</button>
             </div>
         </div>
         <div id="app">
-            <iframe id="app-frame" src="/index.html"></iframe>
+            <div>
+                <iframe id="app-frame"></iframe>
+            </div>
         </div>
-        <script src="chromeShell.js"></script>
+        <script src="thirdparty/requirejs/require.js" data-main="chromeShell"></script>
     </body>
 </html>
