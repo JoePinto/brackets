@@ -23,57 +23,55 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global chrome, document, window */
+/*global $, define, chrome, document, window */
 
-(function () {
+define(function (require, exports, module) {
     "use strict";
-
-    var currentShell = chrome.app.window.current(),
-        appFrame     = document.getElementById('app-frame');
-
-    function getBrackets() {
-        return appFrame.contentWindow.brackets;
-    }
-
-    function quitBrackets() {
-        var brackets = getBrackets();
-
-        brackets.shellAPI.executeCommand("file.close_window").always(function () {
-            currentShell.close();
-        });
-    }
-
-    document.getElementById('close-button').addEventListener('click', quitBrackets, false);
-
-    document.getElementById('maximize-button').addEventListener('click', function () {
-        if (currentShell.isMaximized()) {
-            currentShell.restore();
-        } else {
-            currentShell.maximize();
-        }
-    }, false);
-
-    document.getElementById('minimize-button').addEventListener('click', function () {
-        currentShell.minimize();
-    }, false);
-
-
-    appFrame.addEventListener('load', function () {
-        if (!appFrame.contentWindow.brackets) {
-            appFrame.contentWindow.brackets = {};
-        }
-
-        var brackets = appFrame.contentWindow.brackets;
-        brackets.fs = window.shell.fs;
-        brackets.app = {
-            quit: quitBrackets,
+    
+    var Window         = require("ui/Window"),
+        AppFrame       = require("ui/AppFrame"),
+        HtmlFileSystem = require("HtmlFileSystem"),
+        localStorage   = require("localStorage");
+    
+    
+    // create the global object
+    window.brackets = {
+        app: {
+            quit: Window.close,
             addMenu: function () {
-                console.log('adding menu');
+                console.log("adding menu");
             },
             addMenuItem: function () {
-                console.log('adding menu item');
+                console.log("adding menu item");
+            },
+            getNodeState: function () {
+            
             }
-        };
-    });
+        }
+    };
 
-}());
+    // Initialize APIs before loading brackets
+    $.when(
+        HtmlFileSystem.initialize(),
+        localStorage.initialize()
+    ).done(function (fs, localStorage) {
+        brackets.fs = fs;
+        brackets.localStorage = localStorage;
+        console.log("shell initialized");
+        AppFrame.load();
+    });
+    
+    function executeCloseCommand() {
+        brackets.shellAPI.executeCommand("file.close_window");
+    }
+    
+    Window.onBeforeClose(
+        executeCloseCommand,
+        localStorage.terminate
+    );
+    
+    $(AppFrame).on("titleChanged", function (event, title) {
+        Window.setTitle(title);
+    });
+    
+});
