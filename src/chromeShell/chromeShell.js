@@ -58,7 +58,7 @@ define(function (require, exports, module) {
 
     // Initialize APIs before loading brackets
     $.when(
-        HtmlFileSystem.initialize(),
+        HtmlFileSystem.get(),
         localStorage.initialize()
     ).done(function (fs, localStorage) {
         window.brackets.fs = fs;
