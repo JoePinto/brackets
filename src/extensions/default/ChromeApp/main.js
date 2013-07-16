@@ -152,115 +152,12 @@ var fullscreen = false;
    document.getElementById("inputfiles").reset();
    }
    
-   //Create HTTP Server
-   var tcpport = Math.floor(Math.random() * (25000 - 20000 + 1)) +  20000;
-   
-   brackets.fs.tcpport = tcpport;
-   console.log(tcpport);
-    var socket = chrome.socket;
-    var serverid;
-  var socketInfo;
-   socket.create("tcp", {}, function(_socketInfo) {
-   console.log("HTTP Server Created");
-  socketInfo = _socketInfo;  // Cache globally [eek]
-  serverid = _socketInfo.socketId;
-  socket.listen(socketInfo.socketId, "127.0.0.1", tcpport, 20, function(result) {
-    //Accept the first response
-    socket.accept(socketInfo.socketId, onAccept);
-  });
-});
-
-//Listen on Server
-
-var onAccept = function(acceptInfo) {
-  // This is a request that the system is processing. 
-  // Read the data.
-  socket.read(acceptInfo.socketId, function(readInfo) {
-    // Parse the request.
-    var request = arrayBufferToString(readInfo.data).split("\n")[0];
-    console.log("Request: " + request);
-    var requesttype = request.split(" ")[0];
-    console.log("Request Type: " + requesttype);
-    var requestfile = request.split(" ")[1];
-    console.log("Requested File: " + requestfile);
     
-    if (requesttype == "GET"){
-
-       requestfile = decodeURI(requestfile);
-
-       brackets.fs.readFile(requestfile,null,function (error,result){
-        
-        console.log(error);
-
-        writeResponse(acceptInfo.socketId,false,"200 OK","text/html",result,true);    
- 
-   
-
-    });
-   
-   
-
     
-  
     
-    }
-   
-  }); 
-};
-
-
-    var writeResponse = function(socketId, keepAlive, responsecode, contenttype, data, headers){
-    var newdata = stringToUint8Array(data);
-    if (headers == true){
-    var header = "HTTP/1.0 " + responsecode + "\r\nContent-length: " + newdata.byteLength + "\r\nContent-type:" + contenttype + "\r\n\r\n" + data;
-    } else {
-    var header = data;
-    }
-    header = stringToUint8Array(header);
-  
-    var outputBuffer = new ArrayBuffer(header.byteLength);
-    var view = new Uint8Array(outputBuffer)
-    view.set(header, 0);
-   
-
-     socket.write(socketId, outputBuffer, function(writeInfo) {
-      console.log("WRITE", writeInfo);
-      
-        socket.destroy(socketId);
-	socket.accept(serverid, onAccept);
-	
-
-
-	
-    });
-    };
-   
-
-  
-   var stringToUint8Array = function(string) {
-
-    var buffer = new ArrayBuffer(string.length);
-    var view = new Uint8Array(buffer);
-    for(var i = 0; i < string.length; i++) {
-      view[i] = string.charCodeAt(i);
-    }
-    return view;
-  };
-
-  var arrayBufferToString = function(buffer) {
- 
-    var str = '';
-    var uArrayVal = new Uint8Array(buffer);
-    for(var s = 0; s < uArrayVal.length; s++) {
-      str += String.fromCharCode(uArrayVal[s]);
-    }
-    return str;
-  };
-  
-
-  
-
-   
-   
+    
+    
+    var ServerProvider = require("ChromeServerProvider");    
+    ServerProvider.init();   
    
 });

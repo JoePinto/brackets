@@ -24,33 +24,14 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, forin: true, maxerr: 50, regexp: true */
-/*global define, $, WebSocket, FileError, window, XMLHttpRequest */
+/*global define, $, FileError, window, chrome */
 
  /**
  * Inspector manages the connection to Chrome/Chromium's remote debugger.
  * See inspector.html for the documentation of the remote debugger.
  *
- * # SETUP
- *
- * To enable remote debugging in Chrome or Chromium open either application
- * with the following parameters:
- *
- *   --enable-remote-debugger --remote-debugging-port=9222
- *
- * This will open an HTTP server on the specified port, which can be used to
- * browse the available remote debugger sessions. In general, every open
- * browser tab can host an individual remote debugger session. The
- * available interfaces can be exported by requesting:
- *
- *   http://127.0.0.1:9222/json
- *
- * The response is a JSON-formatted array that specifies all available remote
- * debugger sessions including the remote debugging web sockets.
- *
- * Inspector can connect directly to a web socket via `connect(socketURL)`, or
- * it can find the web socket that corresponds to the tab at the given URL and
- * connect to it via `connectToURL(url)`. The later returns a promise. To 
- * disconnect use `disconnect()`.
+ * The remote debugger is enabled through a Chrome extension and communication
+ * is done through Chrome extension message passing.
  *
  * # EVENTS
  *
@@ -83,18 +64,19 @@
 define(function Inspector(require, exports, module) {
     "use strict";
     
-    module.exports = require("LiveDevelopment/Inspector/ChromeInspector");
-    return;
-
-    var Async = require("utils/Async");
-
     // jQuery exports object for events
     var $exports = $(exports);
 
     var _messageId = 1; // id used for remote method calls, auto-incrementing
     var _messageCallbacks = {}; // {id -> function} for remote method calls
-    var _socket; // remote debugger WebSocket
     var _connectDeferred; // The deferred connect
+    var _extensionID = "hfhmgjnmhoohakhkieckckiheidgmkfd";
+    var _port;
+    var _portId = 0;
+    
+    function _trace(msg) {
+        console.log(msg);
+    }
 
     /** Check a parameter value against the given signature
      * This only checks for optional parameters, not types
@@ -116,7 +98,7 @@ define(function Inspector(require, exports, module) {
      * @param {object} the method signature
      */
     function _send(method, signature, varargs) {
-        if (!_socket) {
+        if (!_port) {
             // FUTURE: Our current implementation closes and re-opens an inspector connection whenever
             // a new HTML file is selected. If done quickly enough, pending requests from the previous
             // connection could come in before the new socket connection is established. For now we 
@@ -126,7 +108,7 @@ define(function Inspector(require, exports, module) {
             return;
         }
 
-        console.assert(_socket, "You must connect to the WebSocket before sending messages.");
+        console.assert(_port, "You must connect to the WebSocket before sending messages.");
         var id, callback, args, i, params = {}, promise;
 
         // extract the parameters, the callback function, and the message id
@@ -151,28 +133,42 @@ define(function Inspector(require, exports, module) {
                 params[signature[i].name] = args[i];
             }
         }
-        _socket.send(JSON.stringify({ method: method, id: id, params: params }));
+        
+        
+        var message = {
+            cmd: "sendCommand",
+            method: method,
+            params: params,
+            id: id
+        };
+        
+        _trace("Executing command " + id + ": " + method + " " + JSON.stringify(params));
+        
+        _port.postMessage(message, callback);
 
         return promise;
     }
 
-    /** WebSocket did close */
+    /** Port closed */
     function _onDisconnect() {
-        _socket = undefined;
+        _trace("** Port disconnected **");
         $exports.triggerHandler("disconnect");
+        _port = null;
     }
 
-    /** WebSocket reported an error */
+    /** Port reported an error */
     function _onError(error) {
         if (_connectDeferred) {
+            _trace("** !!! Port error: " + JSON.stringify(error) + " **");
             _connectDeferred.reject();
             _connectDeferred = null;
         }
         $exports.triggerHandler("error", [error]);
     }
 
-    /** WebSocket did open */
+    /** Port connected */
     function _onConnect() {
+        _trace("** Port connected **");
         if (_connectDeferred) {
             _connectDeferred.resolve();
             _connectDeferred = null;
@@ -180,24 +176,32 @@ define(function Inspector(require, exports, module) {
         $exports.triggerHandler("connect");
     }
 
-    /** Received message from the WebSocket
+    /** Received message from the Port
      * A message can be one of three things:
      *   1. an error -> report it
      *   2. the response to a previous command -> run the stored callback
      *   3. an event -> trigger an event handler method
      * @param {object} message
      */
-    function _onMessage(message) {
-        var response = JSON.parse(message.data);
+    function _onMessage(response) {
         $exports.triggerHandler("message", [response]);
         if (response.error) {
+            _trace("  !!! Error: " + JSON.stringify(response.error));
             $exports.triggerHandler("error", [response.error]);
         } else if (response.result) {
+            if (!response.result.result) {
+                // normalize result (sometimes is undefined)
+                response.result.result = {
+                    type: "undefined"
+                };
+            }
+            _trace("  Result (" + response.id + "): " + JSON.stringify(response.result.result));
             if (_messageCallbacks[response.id]) {
                 _messageCallbacks[response.id](response.result);
                 delete _messageCallbacks[response.id];
             }
         } else {
+            _trace("  Event: " + response.method);
             var domainAndMethod = response.method.split(".");
             var domain = domainAndMethod[0];
             var method = domainAndMethod[1];
@@ -212,27 +216,18 @@ define(function Inspector(require, exports, module) {
      * @param {string} host IP or name
      * @param {integer} debugger port
      */
-    function getDebuggableWindows(host, port) {
-        if (!host) {
-            host = "127.0.0.1";
-        }
-        if (!port) {
-            port = 9222;
-        }
-        var def = new $.Deferred();
-        var request = new XMLHttpRequest();
-        request.open("GET", "http://" + host + ":" + port + "/json");
-        request.onload = function onLoad() {
-            var sockets = JSON.parse(request.response);
-            def.resolve(sockets);
-        };
-        request.onerror = function onError() {
-            def.reject(request.response);
-        };
-
-        request.send(null);
-
-        return def.promise();
+    function getDebuggableWindows() {
+        var deferred = new $.Deferred();
+        chrome.runtime.sendMessage(_extensionID, {
+            cmd: "getTargets"
+        }, function (targets) {
+            if (chrome.runtime.lastError) {
+                deferred.reject(chrome.runtime.lastError);
+            } else {
+                deferred.resolve(targets);
+            }
+        });
+        return deferred.promise();
     }
 
     /** Register a handler to be called when the given event is triggered
@@ -252,88 +247,56 @@ define(function Inspector(require, exports, module) {
     }
 
     /**
-     * Disconnect from the remote debugger WebSocket
+     * Disconnect from the remote debugger
      * @return {jQuery.Promise} Promise that is resolved immediately if not
-     *     currently connected or asynchronously when the socket is closed.
+     *     currently connected or asynchronously when the port is closed.
      */
     function disconnect() {
-        var deferred = new $.Deferred(),
-            promise = deferred.promise();
-
-        if (_socket && (_socket.readyState === WebSocket.OPEN)) {
-            _socket.onclose = function () {
-                // trigger disconnect event
-                _onDisconnect();
-
-                deferred.resolve();
-            };
-
-            promise = Async.withTimeout(promise, 5000);
-
-            _socket.close();
-        } else {
-            if (_socket) {
-                delete _socket.onmessage;
-                delete _socket.onopen;
-                delete _socket.onclose;
-                delete _socket.onerror;
-
-                _socket = undefined;
-            }
-            
-            deferred.resolve();
+        if (_port) {
+            _port.disconnect();
+            _port.onDisconnect.removeListener(_onDisconnect);
+            _port.onMessage.removeListener(_onMessage);
+            _port = null;
         }
-
-        return promise;
+        return $.when().promise();
     }
     
     /**
-     * Connect to the remote debugger WebSocket at the given URL.
+     * Connect to the remote debugger
      * Clients must listen for the `connect` event.
-     * @param {string} WebSocket URL
      */
-    function connect(socketURL) {
+    function connect() {
         disconnect().done(function () {
-            _socket = new WebSocket(socketURL);
-            _socket.onmessage = _onMessage;
-            _socket.onopen = _onConnect;
-            _socket.onclose = _onDisconnect;
-            _socket.onerror = _onError;
+            chrome.runtime.sendMessage(_extensionID, {
+                cmd: "attachDebugger"
+            }, function (result) {
+                if (result.error) {
+                    _onError(result.error);
+                } else {
+                    _port = chrome.runtime.connect(_extensionID, {
+                        name: "port-" + _portId++
+                    });
+                    _port.onDisconnect.addListener(_onDisconnect);
+                    _port.onMessage.addListener(_onMessage);
+                    _onConnect();
+                }
+            });
         });
     }
-
-    /** Connect to the remote debugger of the page that is at the given URL
-     * @param {string} url
+    
+    /** Connect to the remote debugger
      */
-    function connectToURL(url) {
+    function connectToURL() {
         if (_connectDeferred) {
             // reject an existing connection attempt
             _connectDeferred.reject("CANCEL");
         }
-        var deferred = new $.Deferred();
-        _connectDeferred = deferred;
-        var promise = getDebuggableWindows();
-        promise.done(function onGetAvailableSockets(response) {
-            var i, page;
-            for (i in response) {
-                page = response[i];
-                if (page.webSocketDebuggerUrl && page.url.indexOf(url) === 0) {
-                    connect(page.webSocketDebuggerUrl);
-                    // _connectDeferred may be resolved by onConnect or rejected by onError
-                    return;
-                }
-            }
-            deferred.reject(FileError.ERR_NOT_FOUND); // Reject with a "not found" error
-        });
-        promise.fail(function onFail(err) {
-            deferred.reject(err);
-        });
-        return deferred.promise();
-    }
-
-    /** Check if the inspector is connected */
-    function connected() {
-        return _socket !== undefined && _socket.readyState === WebSocket.OPEN;
+        
+        _connectDeferred = new $.Deferred();
+        
+        connect();
+        
+        return _connectDeferred.promise();
     }
 
     /** Initialize the Inspector
@@ -355,6 +318,11 @@ define(function Inspector(require, exports, module) {
                 exports[domain.domain][command.name] = _send.bind(undefined, domain.domain + "." + command.name, command.parameters);
             }
         }
+    }
+    
+    /** Check if the inspector is connected */
+    function connected() {
+        return (_port);
     }
 
     // Export public functions

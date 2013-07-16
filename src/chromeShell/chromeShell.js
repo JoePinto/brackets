@@ -31,7 +31,9 @@ define(function (require, exports, module) {
     var Window         = require("ui/Window"),
         AppFrame       = require("ui/AppFrame"),
         HtmlFileSystem = require("HtmlFileSystem"),
-        localStorage   = require("localStorage");
+        localStorage   = require("localStorage"),
+        NativeApp      = require("liveDevelopment/NativeApp"),
+        HttpServer     = require("liveDevelopment/HttpServer");
     
     
     // create the global object
@@ -45,8 +47,12 @@ define(function (require, exports, module) {
                 console.log("adding menu item");
             },
             getNodeState: function () {
-            
-            }
+                console.error("node not supported");
+            },
+            openLiveBrowser: NativeApp.openLiveBrowser,
+            closeLiveBrowser: NativeApp.closeLiveBrowser,
+            closeAllLiveBrowsers: NativeApp.closeAllLiveBrowsers,
+            openURLInDefaultBrowser: NativeApp.openURLInDefaultBrowser
         }
     };
 
@@ -55,14 +61,20 @@ define(function (require, exports, module) {
         HtmlFileSystem.initialize(),
         localStorage.initialize()
     ).done(function (fs, localStorage) {
-        brackets.fs = fs;
-        brackets.localStorage = localStorage;
+        window.brackets.fs = fs;
+        window.brackets.localStorage = localStorage;
         console.log("shell initialized");
         AppFrame.load();
+        
+        var server = new HttpServer(fs);
+        var tcpport = Math.floor(Math.random() * (25000 - 20000 + 1)) +  20000;
+        server.listen("127.0.0.1", tcpport);
+        window.brackets.fs.tcpport = tcpport;
+        
     });
     
     function executeCloseCommand() {
-        brackets.shellAPI.executeCommand("file.close_window");
+        window.brackets.shellAPI.executeCommand("file.close_window");
     }
     
     Window.onBeforeClose(
