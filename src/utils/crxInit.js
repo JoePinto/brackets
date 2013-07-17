@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Adobe Systems Incorporated. All rights reserved.
+ * Copyright (c) 2013 Adobe Systems Incorporated. All rights reserved.
  *  
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"), 
@@ -21,40 +21,34 @@
  * 
  */
 
+/*jslint vars: true, plusplus: true, devel: true, nomen: true, regexp: true, indent: 4, maxerr: 50 */
+/*global define, window, chrome */
 
-/*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global $, define, document, window */
-
+/**
++ * Require pluging to async initialize the global barckets object before a module
++ */
 define(function (require, exports, module) {
     "use strict";
     
-    var _appFrame = document.getElementById("app-frame");
+    var _isInitialized = false;
     
-    var $exports = $(exports);
-    
-    function listenForTitleChanges() {
-        var titleElement = _appFrame.contentWindow.document.getElementsByTagName("title")[0];
+    exports.load = function (name, req, onload, config) {
         
-        var observer = new window.MutationObserver(function (mutations) {
-            mutations.forEach(function (mutation) {
-                $exports.triggerHandler("titleChanged", mutation.target.textContent);
-            });
+        if (name !== "") {
+            console.error("crxInit shouldn't be used on a module");
+        }
+        
+        if (_isInitialized || !chrome) {
+            onload();
+            return;
+        }
+         
+        // init stuff then call onload(value)
+        chrome.runtime.getBackgroundPage(function (backgroundPage) {
+            window.brackets = backgroundPage.brackets;
+            _isInitialized = true;
+            onload();
         });
         
-        observer.observe(titleElement, {
-            subtree: true,
-            characterData: true
-        });
-    }
-    
-    _appFrame.addEventListener("load", function () {
-        listenForTitleChanges();
-    });
-    
-    function load() {
-        _appFrame.src = "/index.html";
-    }
-    
-    exports.load = load;
-    
+    };
 });

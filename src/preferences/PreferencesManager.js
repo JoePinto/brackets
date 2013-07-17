@@ -36,7 +36,7 @@ define(function (require, exports, module) {
         FileUtils         = require("file/FileUtils"),
         ExtensionLoader   = require("utils/ExtensionLoader"),
         CollectionUtils   = require("utils/CollectionUtils"),
-        localStorage      = require("utils/NativeLocalStorage").localStorage;
+        localStorage      = require("utils/NativeStorage").localStorage;
     
     /**
      * The local storage ID

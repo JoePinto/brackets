@@ -34,6 +34,10 @@
 define(function (require, exports, module) {
     "use strict";
     
+    // use the asyncInit plugin to asynchronously initialize the global brackets object 
+    // before this module is loaded
+    require("asyncInit!");
+    
     var configJSON = require("text!config.json");
     
     // Define core brackets namespace if it isn't already defined
