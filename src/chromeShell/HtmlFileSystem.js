@@ -29,62 +29,98 @@ define(function (require, exports, module) {
 	
     var fs = null;
     
-    var errorCodes = {
-        NO_ERROR                 : 0,
-        ERR_UNKNOWN              : 1,
-        ERR_INVALID_PARAMS       : 2,
-        ERR_NOT_FOUND            : 3,
-        ERR_CANT_READ            : 4,
-        ERR_UNSUPPORTED_ENCODING : 5,
-        ERR_CANT_WRITE           : 6,
-        ERR_OUT_OF_SPACE         : 7,
-        ERR_NOT_FILE             : 8,
-        ERR_NOT_DIRECTORY        : 9,
-        ERR_FILE_EXISTS          : 10
-    };
+    var NO_ERROR                 = 0,
+        ERR_UNKNOWN              = 1,
+        ERR_INVALID_PARAMS       = 2,
+        ERR_NOT_FOUND            = 3,
+        ERR_CANT_READ            = 4,
+        ERR_UNSUPPORTED_ENCODING = 5,
+        ERR_CANT_WRITE           = 6,
+        ERR_OUT_OF_SPACE         = 7,
+        ERR_NOT_FILE             = 8,
+        ERR_NOT_DIRECTORY        = 9,
+        ERR_FILE_EXISTS          = 10;
     
-    function mapError(error) {
-        return errorCodes.NO_ERROR;
+    
+    // Map filesystem errors to brackets errors
+    var _errorMap = {};
+    _errorMap[window.FileError.ABORT_ERR]                   = ERR_UNKNOWN;
+    _errorMap[window.FileError.ENCODING_ERR]                = ERR_UNSUPPORTED_ENCODING;
+    _errorMap[window.FileError.INVALID_MODIFICATION_ERR]    = ERR_CANT_WRITE;
+    _errorMap[window.FileError.INVALID_STATE_ERR]           = ERR_UNKNOWN;
+    _errorMap[window.FileError.NOT_FOUND_ERR]               = ERR_NOT_FOUND;
+    _errorMap[window.FileError.NOT_READABLE_ERR]            = ERR_CANT_READ;
+    _errorMap[window.FileError.NO_MODIFICATION_ALLOWED_ERR] = ERR_CANT_WRITE;
+    _errorMap[window.FileError.PATH_EXISTS_ERR]             = ERR_FILE_EXISTS;
+    _errorMap[window.FileError.QUOTA_EXCEEDED_ERR]          = ERR_OUT_OF_SPACE;
+    _errorMap[window.FileError.SECURITY_ERR]                = ERR_UNKNOWN;
+    _errorMap[window.FileError.SYNTAX_ERR]                  = ERR_UNKNOWN;
+    _errorMap[window.FileError.TYPE_MISMATCH_ERR]           = ERR_UNKNOWN;
+    
+    function _traceError(error, source, path) {
+        var key;
+        for (key in window.FileError) {
+            if (window.FileError.hasOwnProperty(key)) {
+                
+                if (window.FileError[key] === error.code) {
+                    console.error(key + " in " + source + " (path:" + path + ")");
+                    return;
+                }
+                
+            }
+        }
+        
+        console.error("Error unknow: " + path);
+    }
+
+    function _mapFileError(error) {
+        var bracketsError = _errorMap[error.code];
+        if (typeof bracketsError === "undefined") {
+            bracketsError = ERR_UNKNOWN;
+        }
+        return bracketsError;
     }
     
-    function createErrorHandler(callback) {
+    
+    function _createFsErrorHandler(callback, source, path) {
         return function handler(error) {
-            var msg = '';
-            
-            switch (error.code) {
-            case window.FileError.QUOTA_EXCEEDED_ERR:
-                msg = 'QUOTA_EXCEEDED_ERR';
-                break;
-            case window.FileError.NOT_FOUND_ERR:
-                msg = 'NOT_FOUND_ERR';
-                break;
-            case window.FileError.SECURITY_ERR:
-                msg = 'SECURITY_ERR';
-                break;
-            case window.FileError.INVALID_MODIFICATION_ERR:
-                msg = 'INVALID_MODIFICATION_ERR';
-                break;
-            case window.FileError.INVALID_STATE_ERR:
-                msg = 'INVALID_STATE_ERR';
-                break;
-            default:
-                msg = 'Unknown Error';
-                break;
-            }
-            
-            console.error('Error: ' + msg);
-            
-            if (typeof callback === "function") {
-                callback(error, null);
-            }
+            _traceError(error, source, path);
+            callback(_mapFileError(error));
         };
     }
+    
+    
+    
+    
+    
+    var _entryType = {
+        FILE: "file",
+        DIRECTORY: "directory"
+    };
+    
+    
+    function Stats(type, mtime) {
+        this._type = type;
+        this.mtime = mtime;
+    }
+    
+    Stats.prototype.isFile = function () {
+        return (this._type === _entryType.FILE);
+    };
+	
+    Stats.prototype.isDirectory = function () {
+        return (this._type === _entryType.DIRECTORY);
+    };
+    
+    
+    
+    
     
     
     function readdir(path, callback) {
         console.log("READ DIR: " + path);
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "readdir", path);
 
         if (path === "/") {
             var dirReader = fs.root.createReader();
@@ -94,7 +130,7 @@ define(function (require, exports, module) {
                 for (i = 0; i < results.length; i++) {
                     entries[i] = results[i].name;
                 }
-                callback(errorCodes.NO_ERROR, entries);
+                callback(NO_ERROR, entries);
             }, errorHandler);
   
         } else {
@@ -106,7 +142,7 @@ define(function (require, exports, module) {
                     for (i = 0; i < entries.length; i++) {
                         results[i] = entries[i].name;
                     }
-                    callback(errorCodes.NO_ERROR, results);
+                    callback(NO_ERROR, results);
                 }, errorHandler);
             }, errorHandler);
         }
@@ -115,75 +151,44 @@ define(function (require, exports, module) {
     function makedir(path, mode, callback) {
         console.log('makedir ' + path);
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "makedir", path);
         
         fs.root.getDirectory(path, {create: true}, function () {
-            callback(errorCodes.NO_ERROR);
+            callback(NO_ERROR);
         }, errorHandler);
     }
 	
-	
-	
-	
-    
+
     function stat(path, callback) {
         console.log("STAT:" + path);
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "_getStats", path);
 	   
         if (path === "/") {
-            callback(errorCodes.NO_ERROR, {
-                isFile: function () {
-                    return false;
-                },
-                isDirectory: function () {
-                    return true;
-                },
-                mtime: 0
-            });
+            callback(NO_ERROR, new Stats(_entryType.DIRECTORY, 0));
         } else {
-	  
-            if (path.indexOf(".") !== -1) {
-                fs.root.getFile(path, {create : false}, function () {
-                    callback(errorCodes.NO_ERROR, {
-                        isFile: function () {
-                            return true;
-                        },
-                        isDirectory: function () {
-                            return false;
-                        },
-                        mtime: 0
-                    });
-
-                }, function () {
-                    callback(errorCodes.ERR_NOT_FOUND, {});
-                });
- 
-            } else {
-                
-                fs.root.getDirectory(path, {create : false}, function () {
-                    callback(errorCodes.NO_ERROR, {
-                        isFile: function () {
-                            return false;
-                        },
-                        isDirectory: function () {
-                            return true;
-                        },
-                        mtime: 0
-                    });
+            var url = fs.root.toURL() + path.substring(1);
+            window.webkitResolveLocalFileSystemURL(url, function (entry) {
+                var entryType = null;
+                if (entry.isDirectory) {
+                    entryType = _entryType.DIRECTORY;
+                } else if (entry.isFile) {
+                    entryType = _entryType.FILE;
+                }
                     
-                }, function () {
-                    callback(errorCodes.ERR_NOT_FOUND, {});
-                });
-            }
-	  
-	   
+                entry.getMetadata(function (metadata) {
+                    var stats = new Stats(entryType, metadata.modificationTime);
+                    callback(NO_ERROR, stats);
+                }, errorHandler);
+            }, errorHandler);
+            return;
         }
     }
     
     function readFile(path, encoding, callback) {
+        console.log("READ FILE: " + path);
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "readFile", path);
         
         fs.root.getFile(path, {}, function (fileEntry) {
 
@@ -194,7 +199,11 @@ define(function (require, exports, module) {
         
                 reader.onloadend = function (e) {
                     var result = e.target.result;
-                    callback(errorCodes.NO_ERROR, result);
+                    callback(NO_ERROR, result);
+                };
+                
+                reader.onerror = function (e) {
+                    callback(ERR_CANT_READ);
                 };
         
                 reader.readAsText(file);
@@ -205,7 +214,7 @@ define(function (require, exports, module) {
     
     function writeFile(path, data, encoding, callback) {
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "writeFile", path);
         
         fs.root.getFile(path, {create: true}, function (fileEntry) {
 
@@ -213,24 +222,20 @@ define(function (require, exports, module) {
             fileEntry.createWriter(function (fileWriter) {
 
                 fileWriter.onwriteend = function (e) {
-
-                    fileEntry.createWriter(function (fileWriter) {
-                        fileWriter.truncate(blob.size);
-                        fileWriter.onwriteend = function (e) {
-                            console.log('Write completed.');
-                            callback(errorCodes.NO_ERROR);
-                        };
-                    });
-                    
+                    if (fileWriter.position < fileWriter.length) {
+                        fileWriter.truncate(fileWriter.position);
+                        // trucate() triggers onwriteend which can then call callback
+                    } else {
+                        callback(NO_ERROR);
+                    }
                 };
     
                 fileWriter.onerror = function (e) {
-                    console.log('Write failed: ' + e.toString());
+                    callback(ERR_CANT_WRITE);
                 };
     
                 // Create a new Blob and write it to log.txt.
                 var blob = new window.Blob([data], {type: 'text/plain'});
-    
                 fileWriter.write(blob);
     
             }, errorHandler);
@@ -241,7 +246,7 @@ define(function (require, exports, module) {
     function rename(oldPath, newPath, callback) {
         console.log("RENAME: " + oldPath);
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "rename", oldPath + " => " + newPath);
         
         var newDirName = newPath.substr(0, newPath.lastIndexOf("/") + 1),
             newFileName = newPath.substr(newPath.lastIndexOf("/") + 1);
@@ -249,31 +254,31 @@ define(function (require, exports, module) {
         fs.root.getFile(oldPath, {create: false}, function (fileEntry) {
             if (newDirName === "/") {
                 fileEntry.moveTo(fs.root, newFileName, function () {
-                    callback(errorCodes.NO_ERROR);
-                }, callback);
+                    callback(NO_ERROR);
+                }, errorHandler);
             } else {
             
                 fs.root.getDirectory(newDirName, {create: true}, function (dirEntry) {
                     fileEntry.moveTo(dirEntry, newFileName, function () {
-                        callback(errorCodes.NO_ERROR);
-                    }, callback);
-                }, callback);
+                        callback(NO_ERROR);
+                    }, errorHandler);
+                }, errorHandler);
                 
             }
-        }, callback);
+        }, errorHandler);
     
     }
 	
     function unlink(path, callback) {
         console.log("DELETE: " + path);
         
-        var errorHandler = createErrorHandler(callback);
+        var errorHandler = _createFsErrorHandler(callback, "unlink", path);
         
         if (path.indexOf(".") !== -1) {
             fs.root.getFile(path, {create: false}, function (fileEntry) {
 
                 fileEntry.remove(function () {
-                    callback(errorCodes.NO_ERROR);
+                    callback(NO_ERROR);
                 }, errorHandler);
 
             }, errorHandler);
@@ -283,7 +288,7 @@ define(function (require, exports, module) {
             fs.root.getDirectory(path, {}, function (dirEntry) {
 
                 dirEntry.removeRecursively(function () {
-                    callback(errorCodes.NO_ERROR);
+                    callback(NO_ERROR);
                 }, errorHandler);
 
             }, errorHandler);
@@ -318,35 +323,40 @@ define(function (require, exports, module) {
             showOpenDialog           : showOpenDialog,
             
             // Error codes
-            NO_ERROR                 : errorCodes.NO_ERROR,
-            ERR_UNKNOWN              : errorCodes.ERR_UNKNOWN,
-            ERR_INVALID_PARAMS       : errorCodes.ERR_INVALID_PARAMS,
-            ERR_NOT_FOUND            : errorCodes.ERR_NOT_FOUND,
-            ERR_CANT_READ            : errorCodes.ERR_CANT_READ,
-            ERR_UNSUPPORTED_ENCODING : errorCodes.ERR_UNSUPPORTED_ENCODING,
-            ERR_CANT_WRITE           : errorCodes.ERR_CANT_WRITE,
-            ERR_OUT_OF_SPACE         : errorCodes.ERR_OUT_OF_SPACE,
-            ERR_NOT_FILE             : errorCodes.ERR_NOT_FILE,
-            ERR_NOT_DIRECTORY        : errorCodes.ERR_NOT_DIRECTORY,
-            ERR_FILE_EXISTS          : errorCodes.ERR_FILE_EXISTS
+            NO_ERROR                 : NO_ERROR,
+            ERR_UNKNOWN              : ERR_UNKNOWN,
+            ERR_INVALID_PARAMS       : ERR_INVALID_PARAMS,
+            ERR_NOT_FOUND            : ERR_NOT_FOUND,
+            ERR_CANT_READ            : ERR_CANT_READ,
+            ERR_UNSUPPORTED_ENCODING : ERR_UNSUPPORTED_ENCODING,
+            ERR_CANT_WRITE           : ERR_CANT_WRITE,
+            ERR_OUT_OF_SPACE         : ERR_OUT_OF_SPACE,
+            ERR_NOT_FILE             : ERR_NOT_FILE,
+            ERR_NOT_DIRECTORY        : ERR_NOT_DIRECTORY,
+            ERR_FILE_EXISTS          : ERR_FILE_EXISTS
         };
     }
 
 
-
+    var _createPromise = null;
     
-    function initialize() {
-        var result = new $.Deferred();
-        window.webkitRequestFileSystem(window.PERSISTENT, 1024 * 1024 * 1024 * 1024, function (htmlFileSystem) {
-            var fs = onInitFs(htmlFileSystem);
-            result.resolve(fs);
-        }, function (err) {
-            console.error("error while initializing fs");
-            result.reject(err);
-        });
-        return result.promise();
+    function get() {
+        if (!_createPromise) {
+            var deferred = new $.Deferred();
+            _createPromise = deferred.promise();
+            
+            window.webkitRequestFileSystem(window.PERSISTENT, 1024 * 1024 * 1024 * 1024, function (htmlFileSystem) {
+                var fs = onInitFs(htmlFileSystem);
+                deferred.resolve(fs);
+            }, function (err) {
+                console.error("error while initializing fs");
+                deferred.reject(err);
+            });
+        }
+        
+        return _createPromise;
     }
     
-    exports.initialize = initialize;
+    exports.get = get;
     
 });
