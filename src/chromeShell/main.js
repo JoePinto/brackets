@@ -34,7 +34,7 @@ define(function (require, exports, module) {
 
     // Initialize APIs before loading brackets
     var initPromise = $.when(
-        HtmlFileSystem.initialize(),
+        HtmlFileSystem.get(),
         chromeStorage.initialize()
     ).done(function (fs, chromeStorage) {
         window.brackets.fs = fs;
