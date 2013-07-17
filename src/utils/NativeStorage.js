@@ -23,52 +23,16 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global $, define, window, chrome */
+/*global define, brackets, localStorage */
+
+/**
+ * 
+ */
 define(function (require, exports, module) {
     "use strict";
     
-    var chrome = require("chrome");
+    require("utils/Global");
     
-    var _db = {};
-    
-    function getItem(key) {
-        var value = _db[key];
-        if (typeof value === "undefined") {
-            return null;
-        }
-        return value;        
-    }
-    
-    function setItem(key, value) {
-        _db[key] = value;
-    }
-    
-    function removeItem(key) {
-        delete _db[key];
-    }
-    
-    var localStorage = {
-        getItem: getItem,
-        setItem: setItem,
-        removeItem: removeItem
-    };
-    
-    function initialize() {
-        return chrome.storage.local.get({
-            localStorageDb: _db
-        }).pipe(function (items) {
-            _db = items.localStorageDb;
-            return localStorage;
-        });
-    }
-    
-    function terminate() {
-        return chrome.storage.local.set({
-            localStorageDb: _db
-        });
-    }
-    
-    exports.initialize = initialize;
-    exports.terminate  = terminate;
+    exports.localStorage = brackets.localStorage || localStorage;
     
 });
