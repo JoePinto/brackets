@@ -1,6 +1,6 @@
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global $, define, chrome, window */
+/*global define, chrome, window */
 
 define(function (require, exports, module) {
     "use strict";
@@ -8,7 +8,8 @@ define(function (require, exports, module) {
     var HtmlFileSystem = require("HtmlFileSystem"),
         chromeStorage  = require("chromeStorage"),
         HttpServer     = require("LiveDevelopment/HttpServer"),
-        NativeApp      = require("LiveDevelopment/NativeApp");
+        NativeApp      = require("LiveDevelopment/NativeApp"),
+        $              = require("jquery");
     
     // so far limited to one window, we need to create a specific global object for each
     // window if we want to support more windows.
