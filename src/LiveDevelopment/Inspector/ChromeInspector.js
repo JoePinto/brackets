@@ -270,7 +270,7 @@ define(function Inspector(require, exports, module) {
             chrome.runtime.sendMessage(_extensionID, {
                 cmd: "attachDebugger"
             }, function (result) {
-                if (result.error) {
+                if (result && result.error) {
                     _onError(result.error);
                 } else {
                     _port = chrome.runtime.connect(_extensionID, {
