@@ -7,7 +7,10 @@
     
     require.config({
         baseUrl: "/chromeShell",
-        deps: [ "main" ]
+        deps: [ "main" ],
+        paths: {
+            "jquery": "/thirdparty/jquery-2.0.1.min"
+        }
     });
     
 }());
