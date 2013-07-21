@@ -46,51 +46,62 @@ var fullscreen = false;
    
     function handleFolderSelect(evt) {
 	   var savedir = "";
-   if (ProjectManager.getSelectedItem() == null){
-   savedir = "";
-   } else {
-   savedir = ProjectManager.getSelectedItem().fullPath;
-  if (savedir.indexOf(".") != -1){
-  savedir = savedir.substring(0, savedir.lastIndexOf('/')) + "/"; 
- }
- }
-    var files = evt.target.files; // FileList object
-    
-    // files is a FileList of File objects. List some properties.
-    var output = [];
-    for (var i = 0, f; f = files[i]; i++) {
-    
-    var dir = f.webkitRelativePath.substring(0, f.webkitRelativePath.lastIndexOf('/'));
-    console.log(dir);
-    
- 
-    brackets.fs.makedir(savedir + dir,null,function(error){
-    console.log("Created Directory");
-    });
-    
-  
-    
-    var reader = new FileReader();
-
-      // Closure to capture the file information.
-      reader.onload = (function(theFile) {
-        return function(e) {
+       if (ProjectManager.getSelectedItem() == null){
+           savedir = "";
+       } else {
+           savedir = ProjectManager.getSelectedItem().fullPath;
+           if (savedir.indexOf(".") != -1){
+               savedir = savedir.substring(0, savedir.lastIndexOf('/')) + "/"; 
+           }
+       }
+       var files = evt.target.files; // FileList object
+       var fCounter = 0;
        
-                brackets.fs.writeFile(savedir + theFile.webkitRelativePath,e.target.result,null,function(error){
-    console.log("Created Files");
-     ProjectManager.refreshFileTree();
-    });
-	    
-        };
-      })(f);
-
-      // Read in the image file as a data URL.
-      reader.readAsText(f);
-    
-   
+       //top level import dir
+       var topdir = files[0].webkitRelativePath.substring(0, files[0].webkitRelativePath.indexOf('/'));
+       console.log("top dir:"+topdir);
+       brackets.fs.makedir(savedir + topdir,null,function(error){
+                    console.log("Created TopDirectory:"+topdir);
+       });
+       
+       function importNext() {
+            var f = files[++fCounter];
+            if (!f) {
+                console.log("import Done");
+                ProjectManager.refreshFileTree();
+                return;
+            }
+            var dir = f.webkitRelativePath.substring(0, f.webkitRelativePath.lastIndexOf('/'));
+            console.log("import", f.webkitRelativePath);
+            if (f.name == ".") {
+                brackets.fs.makedir(savedir + dir, null, function(error){
+                    console.log("Create Directory err:"+error);
+                    importNext();
+                });
+            } else {
+                var reader = new FileReader();
+                // Closure to capture the file information.
+                reader.onload = (function(theFile) {
+                    return function(e) {   
+                        brackets.fs.writeFile(savedir + theFile.webkitRelativePath, e.target.result, null, function(error){
+                            console.log("Created File:"+savedir + theFile.webkitRelativePath);
+                            importNext();
+                        });                
+                    };
+                })(f);
+                //if (f.type == "text/plain") {
+                    // Read in the file as text only for now.
+                    reader.readAsText(f);
+                //} else {
+                //    console.log("will not import type:"+f.type);
+                //    importNext();
+                //}                
+            }
+       }       
+       // files is a FileList of File objects. List some properties.
+       var output = [];
+       importNext();
     }
-
-  }
   
   function handleFileSelect(evt) {
    var savedir = "";
